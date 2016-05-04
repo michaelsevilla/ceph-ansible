@@ -144,6 +144,10 @@
     (rbd_client_directory_mode is not defined or
      not rbd_client_directory_mode)
 
+- set_fact:
+    ubuntu_use_systemd: "{{ ansible_distribution_version | version_compare('15.04', '>=') }}"
+  when: ansible_distribution == "Ubuntu"
+
 - name: check for a ceph socket
   shell: "stat /var/run/ceph/*.asok > /dev/null 2>&1"
   changed_when: false

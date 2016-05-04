@@ -34,7 +34,11 @@ upgrade_ceph_packages: False
 # is not needed for versions after infernalis.
 use_server_package_split: true
 
-# /!\ EITHER ACTIVE ceph_stable OR ceph_stable_ice OR ceph_stable_uca OR ceph_dev /!\
+# For Vivid and after, Ubuntu uses systemd. This value will be calculated by using
+# ansible facts in ceph-common/tasks/main.yml
+ubuntu_use_systemd: false
+
+# /!\ EITHER ACTIVE ceph_stable OR ceph_stable_ice OR ceph_dev /!\
 
 debian_package_dependencies:
   - python-pycurl
