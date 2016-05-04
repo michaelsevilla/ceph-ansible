@@ -1,13 +1,9 @@
 ---
 - name: install pip and docker on ubuntu
-  apt:
-    name: "{{ item }}"
-    state: present
-    update_cache: yes
+  package: name={{ item }} state=present
   with_items:
     - python-pip
-    - docker
-    - docker.io
+    - docker-engine
   when: ansible_distribution == 'Ubuntu'
   tags:
     with_pkg
