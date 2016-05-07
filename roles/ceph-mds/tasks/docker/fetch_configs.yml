@@ -16,6 +16,12 @@
   failed_when: false
   register: statconfig
 
+- name: ensure conf dirs exist
+  file: path={{ item }} state=directory
+  with_items:
+  - /etc/ceph
+  - /var/lib/ceph/bootstrap-mds/
+
 - name: try to fetch ceph config and keys
   copy:
     src: "{{ fetch_directory }}/docker_mon_files/{{ item.0 }}"

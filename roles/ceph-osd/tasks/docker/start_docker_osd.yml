@@ -23,13 +23,12 @@
     pid: host
     state: started
     privileged: yes
-    env: "OSD_DEVICE={{ item.0 }},{{ ceph_osd_docker_prepare_env }}"
+    env: "OSD_DEVICE={{ item.0 }},OSD_JOURNAL={{ item.1 }},{{ ceph_osd_docker_prepare_env }}"
     volumes: "/var/lib/ceph:/var/lib/ceph,/etc/ceph:/etc/ceph,/dev:/dev,/run:/run"
   with_together:
     - ceph_osd_docker_devices
-    - osd_prepared.results
+    - ceph_osd_docker_journals
   when:
-    item.1.get("rc", 1) != 0 and
     ceph_osd_docker_prepare_env is defined and
     not osd_containerized_deployment_with_kv and
     not is_atomic and
@@ -102,6 +101,8 @@
     ansible_os_family == 'CoreOS' and
     osd_containerized_deployment_with_kv
 
+- pause: seconds=30
+
 # Use systemd to manage container on Atomic host
 - name: generate systemd unit file
   become: true
@@ -157,14 +158,16 @@
 - name: run the ceph osd docker image
   docker:
     image: "{{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}"
-    name: "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}"
+    name: "{{ ansible_hostname }}-osd-{{ item.0 | regex_replace('/', '') }}"
     net: host
     pid: host
     state: started
     privileged: yes
-    env: "OSD_DEVICE={{ item }},{{ ceph_osd_docker_extra_env }}"
+    env: "OSD_DEVICE={{ item.0 }},OSD_JOURNAL={{ item.1 }},{{ ceph_osd_docker_extra_env }}"
     volumes: "/var/lib/ceph:/var/lib/ceph,/etc/ceph:/etc/ceph,/dev:/dev,/run:/run,/sys:/sys"
-  with_items: ceph_osd_docker_devices
+  with_together:
+    - ceph_osd_docker_devices
+    - ceph_osd_docker_journals
   when:
     not is_atomic and
     ansible_os_family != 'CoreOS' and
