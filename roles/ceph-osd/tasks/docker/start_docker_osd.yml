@@ -10,29 +10,27 @@
   when: ceph_docker_on_openstack
 
 - name: verify if the disk was already prepared
-  shell: "lsblk -o LABEL {{ item }} | grep -sq 'ceph'"
+  shell: "lsblk -o PARTLABEL {{ item }} | grep -sq 'ceph'"
   failed_when: false
+  changed_when: false
   with_items: ceph_osd_docker_devices
   register: osd_prepared
 
 - name: prepare ceph osd disk
-  docker:
-    image: "{{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}"
-    name: "{{ ansible_hostname }}-osd-prepare-{{ item.0 | regex_replace('/', '') }}"
-    net: host
-    pid: host
-    state: started
-    privileged: yes
-    env: "OSD_DEVICE={{ item.0 }},OSD_JOURNAL={{ item.1 }},{{ ceph_osd_docker_prepare_env }}"
-    volumes: "/var/lib/ceph:/var/lib/ceph,/etc/ceph:/etc/ceph,/dev:/dev,/run:/run"
-  with_together:
-    - ceph_osd_docker_devices
-    - ceph_osd_docker_journals
-  when:
-    ceph_osd_docker_prepare_env is defined and
-    not osd_containerized_deployment_with_kv and
-    not is_atomic and
-    not ansible_os_family == 'CoreOS'
+  shell: >
+         docker run \
+           --net host \
+           --pid host \
+           --name prepare \
+           --privileged \
+           -v "/var/lib/ceph:/var/lib/ceph" \
+           -v "/etc/ceph:/etc/ceph" \
+           -v "/dev:/dev" \
+           -v "/run:/run" \
+           -e "OSD_DEVICE=/dev/sde" \
+           -e "CEPH_DAEMON=OSD_CEPH_DISK_PREPARE" \
+           -e "OSD_FORCE_ZAP=1" \
+           piha.soe.ucsc.edu:5000/zlog/ceph:jewel
 
 - name: prepare ceph osd disk with kv_store
   docker:
@@ -101,8 +99,6 @@
     ansible_os_family == 'CoreOS' and
     osd_containerized_deployment_with_kv
 
-- pause: seconds=30
-
 # Use systemd to manage container on Atomic host
 - name: generate systemd unit file
   become: true
@@ -158,16 +154,14 @@
 - name: run the ceph osd docker image
   docker:
     image: "{{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}"
-    name: "{{ ansible_hostname }}-osd-{{ item.0 | regex_replace('/', '') }}"
+    name: "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}"
     net: host
     pid: host
-    state: started
+    state: running
     privileged: yes
-    env: "OSD_DEVICE={{ item.0 }},OSD_JOURNAL={{ item.1 }},{{ ceph_osd_docker_extra_env }}"
-    volumes: "/var/lib/ceph:/var/lib/ceph,/etc/ceph:/etc/ceph,/dev:/dev,/run:/run,/sys:/sys"
-  with_together:
-    - ceph_osd_docker_devices
-    - ceph_osd_docker_journals
+    env: "OSD_DEVICE={{ item }},{{ ceph_osd_docker_extra_env }}"
+    volumes: "/var/lib/ceph:/var/lib/ceph,/etc/ceph:/etc/ceph,/dev/:/dev/,/run:/run"
+  with_items: ceph_osd_docker_devices
   when:
     not is_atomic and
     ansible_os_family != 'CoreOS' and
