@@ -17,11 +17,3 @@
   changed_when: false
   failed_when: false
   register: statleftover
-
-- name: fail if we find existing cluster files
-  fail:
-    msg: "looks like no cluster is running but ceph files are present, please remove them"
-  with_together:
-    - ceph_config_keys
-    - statleftover.results
-  when: item.1.stat.exists == true
