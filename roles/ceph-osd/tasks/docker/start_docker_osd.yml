@@ -30,7 +30,7 @@
            -e "OSD_DEVICE=/dev/sde" \
            -e "CEPH_DAEMON=OSD_CEPH_DISK_PREPARE" \
            -e "OSD_FORCE_ZAP=1" \
-           piha.soe.ucsc.edu:5000/zlog/ceph:jewel
+           {{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}
 
 - name: prepare ceph osd disk with kv_store
   docker:
@@ -152,20 +152,37 @@
     ansible_os_family == 'CoreOS'
 
 - name: run the ceph osd docker image
-  docker:
-    image: "{{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}"
-    name: "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}"
-    net: host
-    pid: host
-    state: running
-    privileged: yes
-    env: "OSD_DEVICE={{ item }},{{ ceph_osd_docker_extra_env }}"
-    volumes: "/var/lib/ceph:/var/lib/ceph,/etc/ceph:/etc/ceph,/dev/:/dev/,/run:/run"
+  shell: >
+    docker run -d -it \
+      --name "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" \
+      --net host \
+      --pid host \
+      --privileged \
+      -v "/var/lib/ceph:/var/lib/ceph" \
+      -v "/etc/ceph:/etc/ceph" \
+      -v "/dev:/dev" \
+      -v "/run:/run" \
+      -e "OSD_DEVICE={{ item }}" \
+      -e "{{ ceph_osd_docker_extra_env }}" \
+      --entrypoint=/bin/bash \
+      {{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}
   with_items: ceph_osd_docker_devices
-  when:
-    not is_atomic and
-    ansible_os_family != 'CoreOS' and
-    not osd_containerized_deployment_with_kv
+
+- name: mount directories and mkfs OSD specifics
+  shell: docker exec {{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }} /entrypoint.sh
+  with_items: ceph_osd_docker_devices
+  ignore_errors: True
+
+- name: get the OSD number
+  shell: docker exec {{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }} ls /var/lib/ceph/osd/ | sed "s/ceph-//g"
+  with_items: ceph_osd_docker_devices
+  register: result
+
+- name: start the OSD
+  shell: docker exec {{ ansible_hostname }}-osd-{{ item.0 | regex_replace('/', '') }} ceph-osd -i {{ item.1.stdout }}
+  with_together:
+  - "{{ ceph_osd_docker_devices }}"
+  - "{{ result.results }}"
 
 - name: run the ceph osd docker image with kv
   docker:
