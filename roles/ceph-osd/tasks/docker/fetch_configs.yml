@@ -5,7 +5,7 @@
       - /etc/ceph/ceph.conf
       - /etc/ceph/ceph.client.admin.keyring
       - /etc/ceph/ceph.mon.keyring
-      - /etc/ceph/monmap
+      - /etc/ceph/monmap-{{ cluster }}
       - /var/lib/ceph/bootstrap-osd/ceph.keyring
 
 - name: stat for ceph config and keys
