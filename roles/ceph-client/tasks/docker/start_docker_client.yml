@@ -9,10 +9,10 @@
            -v /run:/run \
            -v /sys:/sys \
            -v /etc/ceph:/etc/ceph \
-           -v {{ mount_point }}:/cephfs:shared \
+           -v {{ mount_point }}:{{ mount_point }}:shared \
            --entrypoint="/bin/bash" \
            "{{ ceph_client_docker_username }}/{{ ceph_client_docker_imagename }}:{{ ceph_client_docker_image_tag }}" \
-           -c "ceph-fuse /cephfs -d -o allow_other"
+           -c "ceph-fuse {{ mount_point }} -d -o allow_other"
 
 - name: check to make sure it got mounted
   shell: docker run --rm --volumes-from cephfs alpine sh -c "mount" | grep "ceph-fuse"
