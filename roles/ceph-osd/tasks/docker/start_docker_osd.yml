@@ -40,6 +40,7 @@
     - item.1.get("rc", 0) != 0
     - ceph_osd_docker_prepare_env is defined
     - not osd_containerized_deployment_with_kv
+    - not osd_directory
 
 - name: prepare ceph osd disk with kv_store
   shell: |
@@ -119,6 +120,26 @@
     - ansible_os_family != 'RedHat'
     - ansible_os_family != 'CoreOS'
     - not osd_containerized_deployment_with_kv
+    - not osd_directory
+
+- name: run the ceph osd docker image with a directory
+  shell: >
+         docker run -d -it \
+         --name "pl3-osd-ceph_osd_docker_devices" \
+         --net host \
+         --pid host \
+         --privileged \
+         -e "OSD_DEVICE=ceph_osd_docker_devices" \
+         -e "CEPH_DAEMON=OSD_DIRECTORY" \
+         -e "{{ ceph_osd_docker_extra_env }}" \
+         -v "/var/lib/ceph/:/var/lib/ceph" \
+         -v "/etc/ceph:/etc/ceph" \
+         -v "/etc/localtime:/etc/localtime:ro" \
+         -v "/dev:/dev" \
+         -v "/run:/run" \
+         "{{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}:{{ ceph_osd_docker_image_tag }}"
+  when:
+    - osd_directory
 
 - name: run the ceph osd docker image with kv
   docker:
