@@ -121,6 +121,39 @@
     - ansible_os_family != 'CoreOS'
     - not osd_containerized_deployment_with_kv
     - not osd_directory
+    - not cloudlab
+
+- name: run the ceph osd docker image via cloudlab
+  shell: >
+         docker run -d -it \
+         --name "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" \
+         --net host \
+         --pid host \
+         --privileged \
+         -e "OSD_DEVICE={{ item }}" \
+         -e "{{ ceph_osd_docker_extra_env }}" \
+         -v "/var/lib/ceph:/var/lib/ceph" \
+         -v "/etc/ceph:/etc/ceph" \
+         -v "/etc/localtime:/etc/localtime:ro" \
+         -v "/dev:/dev" \
+         -v "/run:/run" \
+         --entrypoint=/bin/bash \
+         "{{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}:{{ ceph_osd_docker_image_tag }}"
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+#- name: run some commands
+#  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" {{ item }}
+#  with_items:
+#    - "ceph-disk prepare --cluster ceph --cluster-uuid e9570dd8-03ad-45f0-8a74-ec9b3bb7095f --fs-type xfs /dev/sdb /dev/sdc"
+#    - "chown ceph /dev/sdb /dev/sdb1 /dev/sdc /dev/sdc1"
+#    - "ceph-disk activate /dev/sdb1 --activate-key /etc/ceph/ceph.keyring"
+#    - "ceph-osd -i {{ osd }}"
+#  when:
+#    - cloudlab
+
+- fail: msg="haha"
 
 - name: run the ceph osd docker image with a directory
   shell: >
