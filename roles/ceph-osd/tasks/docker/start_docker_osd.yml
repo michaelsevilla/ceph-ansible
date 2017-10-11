@@ -41,6 +41,7 @@
     - ceph_osd_docker_prepare_env is defined
     - not osd_containerized_deployment_with_kv
     - not osd_directory
+    - not cloudlab
 
 - name: prepare ceph osd disk with kv_store
   shell: |
@@ -121,6 +122,75 @@
     - ansible_os_family != 'CoreOS'
     - not osd_containerized_deployment_with_kv
     - not osd_directory
+    - not cloudlab
+
+- name: run the ceph osd docker image via cloudlab
+  shell: >
+         docker run -d -it \
+         --name "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" \
+         --net host \
+         --pid host \
+         --privileged \
+         -e "OSD_DEVICE={{ item }}" \
+         -e "{{ ceph_osd_docker_extra_env }}" \
+         -v "/var/lib/ceph:/var/lib/ceph" \
+         -v "/etc/ceph:/etc/ceph" \
+         -v "/etc/localtime:/etc/localtime:ro" \
+         -v "/dev:/dev" \
+         -v "/run:/run" \
+         --entrypoint=/bin/bash \
+         "{{ ceph_osd_docker_username }}/{{ ceph_osd_docker_imagename }}:{{ ceph_osd_docker_image_tag }}"
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+- name: erase the damage of other osd stuff
+  shell: sgdisk --zap-all --clear --mbrtogpt -g -- /dev/sdb; sudo sgdisk --zap-all --clear --mbrtogpt -g -- /dev/sdc
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+- name: make the OSD directory
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" mkdir -p /var/lib/ceph/osd
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+  
+- name: partition the disk
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk prepare --cluster ceph --cluster-uuid e9570dd8-03ad-45f0-8a74-ec9b3bb7095f --fs-type xfs /dev/sdb /dev/sdc
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+- name: fix some permissions
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" chown ceph /dev/sdb /dev/sdb1 /dev/sdc /dev/sdc1
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+- name: activate the disk
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk activate /dev/sdb1
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+- name: start the OSD
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-osd -i `ls /var/lib/ceph/osd/ | sed "s/-/ /g" | awk '{print $2}'`
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+- name: add to the crush map
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph osd crush add osd.`ls /var/lib/ceph/osd/ | sed "s/-/ /g" | awk '{print $2}'` 1.0 host=`hostname`
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+- name: move server under root crush node (may be redundant)
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph osd crush move `hostname` root=default
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
 
 - name: run the ceph osd docker image with a directory
   shell: >

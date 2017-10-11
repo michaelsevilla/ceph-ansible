@@ -54,3 +54,4 @@
   when: ansible_os_family == 'RedHat'
 
 - include: start_docker_osd.yml
+  serial: 1 # Please make the OSDs come in a specific order
