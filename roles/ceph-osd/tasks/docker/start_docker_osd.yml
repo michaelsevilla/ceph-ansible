@@ -145,7 +145,13 @@
     - cloudlab
 
 - name: erase the damage of other osd stuff
-  shell: sgdisk --zap-all --clear --mbrtogpt -g -- /dev/sdb; sudo sgdisk --zap-all --clear --mbrtogpt -g -- /dev/sdc
+  shell: sgdisk --zap-all --clear --mbrtogpt -g -- {{ item }}
+  with_items: ceph_osd_docker_devices
+  when:
+    - cloudlab
+
+- name: partition the disk
+  shell: sgdisk -n 1:0:+10G -n 2:20973568:+400G -g {{ item }}
   with_items: ceph_osd_docker_devices
   when:
     - cloudlab
@@ -157,19 +163,20 @@
     - cloudlab
   
 - name: partition the disk
-  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk prepare --cluster ceph --cluster-uuid e9570dd8-03ad-45f0-8a74-ec9b3bb7095f --fs-type xfs /dev/sdb /dev/sdc
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk prepare --cluster ceph --cluster-uuid e9570dd8-03ad-45f0-8a74-ec9b3bb7095f --fs-type ext4 {{ item }}1 {{ item }}2
   with_items: ceph_osd_docker_devices
   when:
     - cloudlab
 
 - name: fix some permissions
-  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" chown ceph /dev/sdb /dev/sdb1 /dev/sdc /dev/sdc1
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" chown ceph {{ item }}1 {{ item }}2
   with_items: ceph_osd_docker_devices
   when:
     - cloudlab
 
 - name: activate the disk
-  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk activate /dev/sdb1
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk activate {{ item }}1
+  ignore_errors: true
   with_items: ceph_osd_docker_devices
   when:
     - cloudlab
@@ -191,7 +198,6 @@
   with_items: ceph_osd_docker_devices
   when:
     - cloudlab
->>>>>>> master
 
 - name: run the ceph osd docker image with a directory
   shell: >

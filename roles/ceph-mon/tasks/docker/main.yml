@@ -72,3 +72,22 @@
     - groups[restapi_group_name] is defined
     - inventory_hostname == groups.mons|last
     - not mon_containerized_deployment_with_kv
+
+- name: create ceph mgr keyring(s) when mon is containerized
+  command: docker exec {{ ansible_hostname }} ceph --cluster {{ cluster }} auth get-or-create mgr.0 mon 'allow profile mgr' osd 'allow *' mds 'allow *' -o /etc/ceph/{{ cluster }}.mgr.0.keyring
+  args:
+     creates: /etc/ceph/ceph.mgr.0.keyring
+  changed_when: false
+  when:
+    - cephx
+    - mon_containerized_deployment
+    - not mon_containerized_deployment_with_kv
+    - kraken
+
+- name: start that there manager
+  command: docker exec {{ ansible_hostname }} mkdir /var/lib/ceph/mgr/ceph-0
+  when: kraken
+- command: docker exec {{ ansible_hostname }} cp /etc/ceph/ceph.mgr.0.keyring /var/lib/ceph/mgr/ceph-0/keyring
+  when: kraken
+- command: docker exec {{ ansible_hostname }} ceph-mgr -i 0
+  when: kraken
