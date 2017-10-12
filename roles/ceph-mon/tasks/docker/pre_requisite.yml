@@ -33,6 +33,17 @@
   tags:
     with_pkg
 
+# ensure extras enabled for docker
+- name: enable extras repo for centos
+  ini_file:
+    dest: /etc/yum.repos.d/CentOS-Base.repo
+    section: extras
+    option: enabled
+    value: 1
+  when: ansible_distribution == 'CentOS'
+  tags:
+    with_pkg
+
 - name: install pip on redhat
   yum:
     name: "{{ item }}"
