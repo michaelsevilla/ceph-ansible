@@ -37,6 +37,18 @@
   changed_when: false
   when: ansible_os_family == 'RedHat' or ansible_os_family == 'CoreOS'
 
+- name: edit cluster network bug
+  lineinfile:
+    dest: /etc/ceph/ceph.conf
+    regexp: '^public_network'
+    line: 'public network = {{ cluster_network }}'
+
+- name: edit cluster network bug
+  lineinfile:
+    dest: /etc/ceph/ceph.conf
+    regexp: '^cluster_network'
+    state: absent
+
 - name: run the ceph metadata docker image
   shell: >
     docker run -d \
