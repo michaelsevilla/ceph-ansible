@@ -46,6 +46,14 @@
   command: umount {{ mount_point }}
   ignore_errors: true
   no_log: true
+  when: processes_per_client is not defined
+
+- name: umount {{ mount_point }}-{{ item }}
+  command: umount {{ mount_point }}-{{ item }}
+  ignore_errors: true
+  no_log: true
+  when: processes_per_client is defined
+  with_sequence: start=1 end={{ processes_per_client }}
 
 - name: share root mount
   command: mount --make-shared /
@@ -54,3 +62,11 @@
   shell: rm -r {{ mount_point }}
   ignore_errors: true
   no_log: true
+  when: processes_per_client is not defined
+
+- name: delete mount point
+  shell: rm -r {{ mount_point }}-{{ item }}
+  ignore_errors: true
+  no_log: true
+  when: processes_per_client is defined
+  with_sequence: start=1 end={{ processes_per_client }}
