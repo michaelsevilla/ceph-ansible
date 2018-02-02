@@ -157,7 +157,7 @@
   with_items: ceph_osd_docker_devices
   
 - name: partition the disk
-  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk prepare --cluster ceph --cluster-uuid e9570dd8-03ad-45f0-8a74-ec9b3bb7095f --fs-type ext4 {{ item }}1 {{ item }}2
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk prepare --cluster ceph --cluster-uuid e9570dd8-03ad-45f0-8a74-ec9b3bb7095f --fs-type ext4 {{ item }}2
   with_items: ceph_osd_docker_devices
 
 - name: fix some permissions
@@ -165,8 +165,7 @@
   with_items: ceph_osd_docker_devices
 
 - name: activate the disk
-  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk activate {{ item }}1
-  ignore_errors: true
+  shell: docker exec "{{ ansible_hostname }}-osd-{{ item | regex_replace('/', '') }}" ceph-disk activate {{ item }}2
   with_items: ceph_osd_docker_devices
 
 - name: start the OSD
